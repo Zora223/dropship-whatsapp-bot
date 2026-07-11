@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import qrcode from "qrcode-terminal";
+import QRCode from "qrcode";
 import pino from "pino";
 import {
   makeWASocket,
@@ -130,7 +131,10 @@ async function connectToWhatsApp() {
         console.log("╚════════════════════════════════════════════╝\n");
         qrcode.generate(qr, { small: true });
         console.log(
-          "\n💡 WhatsApp → Menú (⋮) → Dispositivos vinculados → Vincular\n"
+          "\n💡 WhatsApp → Menú (⋮) → Dispositivos vinculados → Vincular"
+        );
+        console.log(
+          `🌐 O abre en el navegador: /qr para ver el QR como imagen\n`
         );
       }
 
@@ -194,6 +198,231 @@ app.get("/status", (req, res) => {
     uptime: process.uptime(),
     attempts: connectionAttempts,
   });
+});
+
+// ============================================================
+// QR como imagen HTML (para escanear desde navegador)
+// ============================================================
+app.get("/qr", async (req, res) => {
+  try {
+    // Ya está conectado → mostrar página de éxito
+    if (isConnected) {
+      return res.send(`
+        <html>
+          <head>
+            <title>WhatsApp Bot - Conectado</title>
+            <meta http-equiv="refresh" content="10">
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                color: #166534;
+              }
+              .card {
+                background: white;
+                padding: 48px 40px;
+                border-radius: 20px;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+                text-align: center;
+                max-width: 400px;
+              }
+              h1 { margin: 0 0 10px; font-size: 28px; }
+              p { margin: 8px 0; color: #6b7280; }
+              .badge {
+                display: inline-block;
+                background: #10b981;
+                color: white;
+                padding: 8px 20px;
+                border-radius: 999px;
+                font-weight: 600;
+                margin-top: 16px;
+                font-size: 14px;
+              }
+              .emoji {
+                font-size: 64px;
+                margin-bottom: 16px;
+                display: block;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <span class="emoji">✅</span>
+              <h1>WhatsApp Conectado</h1>
+              <p>El bot está listo para enviar mensajes</p>
+              <div class="badge">● ONLINE</div>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    // Aún no hay QR generado
+    if (!lastQr) {
+      return res.send(`
+        <html>
+          <head>
+            <title>WhatsApp Bot - Generando QR</title>
+            <meta http-equiv="refresh" content="3">
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                color: #92400e;
+              }
+              .card {
+                background: white;
+                padding: 48px 40px;
+                border-radius: 20px;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+                text-align: center;
+              }
+              .spinner {
+                border: 4px solid #fef3c7;
+                border-top: 4px solid #f59e0b;
+                border-radius: 50%;
+                width: 48px;
+                height: 48px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+              }
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              h1 { margin: 0 0 10px; font-size: 24px; }
+              p { margin: 4px 0; color: #6b7280; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <div class="spinner"></div>
+              <h1>Generando QR...</h1>
+              <p>Esta página se recargará automáticamente</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    // Generar QR como Data URL (base64)
+    const qrDataUrl = await QRCode.toDataURL(lastQr, {
+      width: 400,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    });
+
+    res.send(`
+      <html>
+        <head>
+          <title>WhatsApp Bot - Escanear QR</title>
+          <meta http-equiv="refresh" content="20">
+          <style>
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              padding: 20px;
+              background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+              color: #111827;
+              box-sizing: border-box;
+            }
+            .card {
+              background: white;
+              padding: 40px;
+              border-radius: 24px;
+              box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+              text-align: center;
+              max-width: 500px;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            h1 {
+              margin: 0 0 8px;
+              font-size: 24px;
+              font-weight: 700;
+            }
+            .subtitle {
+              color: #6b7280;
+              margin-bottom: 24px;
+              font-size: 14px;
+            }
+            img {
+              border: 8px solid #f3f4f6;
+              border-radius: 16px;
+              display: block;
+              margin: 0 auto;
+              max-width: 100%;
+              height: auto;
+            }
+            .steps {
+              text-align: left;
+              margin-top: 24px;
+              padding: 20px;
+              background: #f9fafb;
+              border-radius: 12px;
+              font-size: 14px;
+              color: #4b5563;
+            }
+            .steps ol {
+              margin: 0;
+              padding-left: 20px;
+            }
+            .steps li {
+              margin: 6px 0;
+              line-height: 1.5;
+            }
+            .refresh {
+              margin-top: 16px;
+              font-size: 12px;
+              color: #9ca3af;
+            }
+            .brand {
+              margin-top: 8px;
+              font-size: 12px;
+              color: #d1d5db;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h1>📱 Escanea el QR con WhatsApp</h1>
+            <p class="subtitle">Dropship Perú Bot</p>
+            <img src="${qrDataUrl}" alt="QR Code de WhatsApp" />
+            <div class="steps">
+              <ol>
+                <li>Abre <strong>WhatsApp</strong> en tu celular</li>
+                <li>Toca el menú (⋮) → <strong>Dispositivos vinculados</strong></li>
+                <li>Toca <strong>Vincular un dispositivo</strong></li>
+                <li>Apunta la cámara a este QR</li>
+              </ol>
+            </div>
+            <p class="refresh">🔄 Auto-refresh cada 20 segundos</p>
+            <p class="brand">Dropship Perú · WhatsApp Bot</p>
+          </div>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("❌ Error generando QR:", err);
+    res.status(500).send(`Error generando QR: ${err.message}`);
+  }
 });
 
 // Enviar mensaje (protegido con API key)

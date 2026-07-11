@@ -1,0 +1,12 @@
+### Verificar estado del bot
+GET http://localhost:3000/status
+
+### Enviar mensaje de prueba
+POST http://localhost:3000/send
+Content-Type: application/json
+x-api-key: dropship_wa_bot_2026_c8f3d2a1b9e7f4d6a2c5b8e1f7d3a9c4
+
+{
+  "phone": "916146396",
+  "message": "🤖 Hola! Este es un mensaje de prueba desde Dropship Perú Bot. Funciona! 🎉"
+}       

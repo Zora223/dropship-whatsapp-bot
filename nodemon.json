@@ -1,0 +1,10 @@
+{
+  "watch": ["server.js"],
+  "ignore": [
+    "auth/",
+    "node_modules/",
+    "*.log",
+    ".env"
+  ],
+  "ext": "js,json"
+}

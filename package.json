@@ -1,0 +1,33 @@
+{
+  "name": "dropship-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp bot backend para Dropship Perú usando Baileys",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "dropship",
+    "peru"
+  ],
+  "author": "Antony Panduro",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.23",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "pino": "^9.14.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

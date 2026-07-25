@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import qrcode from "qrcode-terminal";
 import QRCode from "qrcode";
 import pino from "pino";
+import fs from "fs/promises";
+import path from "path";
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -154,7 +156,7 @@ async function connectToWhatsApp() {
           setTimeout(connectToWhatsApp, 5000);
         } else {
           console.log(
-            "\n❌ Sesión cerrada por el usuario. Borra la carpeta 'auth/' y reinicia para escanear un nuevo QR.\n"
+            "\n❌ Sesión cerrada por el usuario. Usa POST /reset-auth para forzar reset y escanear nuevo QR.\n"
           );
         }
       } else if (connection === "open") {
@@ -540,6 +542,56 @@ app.post("/reconnect", requireApiKey, async (req, res) => {
     setTimeout(connectToWhatsApp, 1000);
     res.json({ success: true, message: "Reconectando..." });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// 🔥 RESET AUTH COMPLETO (v20.5)
+// Borra la carpeta 'auth/' y reinicia el bot con QR nuevo
+// USAR cuando la sesión fue expulsada por WhatsApp (código 401)
+// ============================================================
+app.post("/reset-auth", requireApiKey, async (req, res) => {
+  try {
+    console.log("\n🔥 RESET AUTH iniciado...");
+
+    // 1. Cerrar socket actual si existe
+    if (sock) {
+      try {
+        await sock.end();
+        console.log("✓ Socket cerrado");
+      } catch (e) {
+        console.log("⚠️ Socket ya estaba cerrado");
+      }
+    }
+
+    // 2. Borrar carpeta auth/ completa
+    const authPath = path.resolve("auth");
+    try {
+      await fs.rm(authPath, { recursive: true, force: true });
+      console.log("✓ Carpeta auth/ eliminada");
+    } catch (e) {
+      console.log("⚠️ Carpeta auth/ no existía o no se pudo borrar:", e.message);
+    }
+
+    // 3. Reset de estado
+    sock = null;
+    isConnected = false;
+    lastQr = null;
+    connectionAttempts = 0;
+
+    // 4. Reiniciar conexión → generará QR nuevo
+    setTimeout(connectToWhatsApp, 2000);
+
+    console.log("✓ Reconexión programada en 2 segundos\n");
+
+    res.json({
+      success: true,
+      message: "Auth reseteado. En 5-10 segundos aparecerá QR nuevo en /qr",
+      nextStep: "Abre /qr en el navegador para escanear",
+    });
+  } catch (err) {
+    console.error("❌ Error en reset-auth:", err);
     res.status(500).json({ error: err.message });
   }
 });

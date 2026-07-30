@@ -1,4 +1,4 @@
-// server.js - Dropship Perú v20.8
+// server.js - Dropship Perú v20.8.1
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -68,21 +68,36 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// v20.8.1 - Fix: borrar CONTENIDO de auth, no la carpeta (Railway volume compat)
 async function cleanAuthAndReconnect() {
-  console.log("\nAuto-limpiando carpeta auth por sesion expulsada...");
+  console.log("\nAuto-limpiando contenido de auth por sesion expulsada...");
   const authPath = path.resolve("auth");
   try {
-    await fs.rm(authPath, { recursive: true, force: true });
-    console.log("Carpeta auth eliminada");
+    const files = await fs.readdir(authPath);
+    for (const file of files) {
+      const filePath = path.join(authPath, file);
+      try {
+        await fs.rm(filePath, { recursive: true, force: true });
+      } catch (e) {
+        console.log("No se pudo borrar " + file + ": " + e.message);
+      }
+    }
+    console.log("Contenido de auth eliminado (" + files.length + " archivos)");
   } catch (e) {
-    console.log("Error borrando auth:", e.message);
+    console.log("Error accediendo a auth: " + e.message);
+    try {
+      await fs.mkdir(authPath, { recursive: true });
+      console.log("Carpeta auth creada");
+    } catch (e2) {}
   }
+
   sock = null;
   isConnected = false;
   lastQr = null;
   connectionAttempts = 0;
-  console.log("Reconectando en 3 segundos...\n");
-  setTimeout(connectToWhatsApp, 3000);
+
+  console.log("Reconectando en 5 segundos...\n");
+  setTimeout(connectToWhatsApp, 5000);
 }
 
 async function connectToWhatsApp() {
@@ -179,7 +194,7 @@ app.get("/", (req, res) => {
   res.json({
     status: "ok",
     service: "dropship-whatsapp-bot",
-    version: "v20.8",
+    version: "v20.8.1",
     connected: isConnected,
     hasQr: !!lastQr,
     queueSize: messageQueue.length,
@@ -321,7 +336,7 @@ app.post("/reset-auth", requireApiKey, async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("\n=== Dropship WhatsApp Bot v20.8 ===");
+  console.log("\n=== Dropship WhatsApp Bot v20.8.1 ===");
   console.log("Puerto: " + PORT);
   console.log("API_KEY: " + API_KEY.substring(0, 15) + "...");
   console.log("Rate limit: " + MIN_DELAY_BETWEEN_MESSAGES + "ms entre mensajes\n");
